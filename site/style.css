@@ -68,6 +68,21 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 5px; font-
 .logo svg { width: 24px; height: 24px; stroke: #fff; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .brand h1 { font-size: 18px; letter-spacing: .02em; }
 .sub { margin: 0; font-size: 12.5px; color: var(--muted); }
+.refresh { margin-left: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px; padding: 0 8px; font-size: 12px; line-height: 20px; cursor: pointer; white-space: nowrap; }
+.refresh.spin { opacity: .5; }
+
+/* ---------- 加入主畫面（PWA）：瀏海、動態島、Home 條的安全區 ---------- */
+body::before {
+  content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px);
+  background: var(--accent); z-index: 30; /* 狀態列底下鋪品牌紅，白色時間與電量才看得清楚 */
+}
+.top { padding-top: env(safe-area-inset-top, 0px); }
+.wrap { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.foot { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+@media (display-mode: standalone) {
+  body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+  .foot { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+}
 .tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 11px; }
 .tabs button {
   border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 600;

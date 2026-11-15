@@ -2,11 +2,21 @@
 <html lang="zh-Hant-TW">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>台股籌碼盯盤</title>
 <meta name="description" content="每天自動更新的台股盤後籌碼報告，與加密保護的個人盯盤頁。">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23b3261e'/%3E%3Cpath d='M7 22l6-7 5 4 7-9' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#b3261e">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- iPhone 加入主畫面 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="籌碼盯盤">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,7 +26,7 @@
       <span class="logo" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M6 23l7-8 5 4 8-10" /></svg></span>
       <div>
         <h1>台股籌碼盯盤</h1>
-        <p class="sub" id="status-line">讀取中…</p>
+        <p class="sub"><span id="status-line">讀取中…</span><button type="button" class="refresh" id="refresh-btn" aria-label="立即更新">↻ 更新</button></p>
       </div>
     </div>
     <nav class="tabs" role="tablist">

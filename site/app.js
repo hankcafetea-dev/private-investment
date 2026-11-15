@@ -431,6 +431,18 @@ async function refresh(first = false) {
     try { PRIV.data = await decrypt(await getJSON("data/private.enc.json"), PRIV.pw); renderPrivate(); } catch { /* 密碼換了 */ }
   } else if (PRIV.data) renderPrivate(); // 更新「幾分鐘前」
 }
+$("#refresh-btn").onclick = async (e) => {
+  const b = e.currentTarget; b.classList.add("spin"); b.disabled = true;
+  try { await refresh(); if (STATE.status) await loadIndex(); } finally { b.classList.remove("spin"); b.disabled = false; }
+};
+// 主畫面 App 從背景切回來時，計時器可能被系統暫停過，回來就馬上更新
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
+window.addEventListener("pageshow", (e) => { if (e.persisted) refresh(); });
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => { /* 不支援就當一般網頁 */ }));
+}
+
 (async () => {
   await refresh(true);
   if (location.hash === "#me") showTab("me");

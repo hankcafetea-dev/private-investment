@@ -37,6 +37,14 @@ def main():
         shutil.rmtree(out)
     shutil.copytree(ROOT / "site", out)
     (out / ".nojekyll").write_text("", encoding="utf-8")
+    # PWA：網頁本體內容的雜湊當版本號；本體沒改就不換快取，改了手機 App 下次開啟就更新
+    import hashlib
+
+    h = hashlib.sha256()
+    for f in sorted(p for p in (ROOT / "site").rglob("*") if p.is_file()):
+        h.update(f.relative_to(ROOT).as_posix().encode() + f.read_bytes())
+    sw = out / "sw.js"
+    sw.write_text(sw.read_text(encoding="utf-8").replace("__BUILD_VERSION__", h.hexdigest()[:12]), encoding="utf-8")
     (out / "data" / "postmarket").mkdir(parents=True, exist_ok=True)
 
     # ---- 公開：盤後報告 ----

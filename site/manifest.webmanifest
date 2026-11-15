@@ -1,0 +1,25 @@
+{
+  "id": "./",
+  "name": "台股籌碼盯盤",
+  "short_name": "籌碼盯盤",
+  "description": "每天自動更新的台股盤後籌碼報告，與加密保護的個人盯盤。",
+  "lang": "zh-Hant-TW",
+  "dir": "ltr",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f5f2",
+  "theme_color": "#b3261e",
+  "categories": ["finance"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "我的盯盤", "short_name": "盯盤", "url": "./#me", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "盤後籌碼", "short_name": "籌碼", "url": "./", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
