@@ -66,10 +66,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+          # exit code 2＝確定沒有 data 分支；其他錯誤（網路等）直接失敗，避免用空資料蓋掉歷史
+          set +e
+          git ls-remote --exit-code --heads origin data >/dev/null
+          rc=$?
+          set -e
+          if [ "$rc" = 0 ]; then
             git clone -q --depth 1 --branch data "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" _data
-          else
+          elif [ "$rc" = 2 ]; then
+            echo "還沒有 data 分支，從空白開始"
             mkdir -p _data
+          else
+            echo "::error::讀取 data 分支失敗（exit ${rc}），這次不更新"
+            exit 1
           fi
           echo "工作：${TASK}"
 
@@ -123,7 +132,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -qm "資料更新 $(date '+%F %R')（${TASK}）"
+          git commit -q --allow-empty -m "資料更新 $(date '+%F %R')（${TASK}）"
           git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
 
       - uses: actions/configure-pages@v6

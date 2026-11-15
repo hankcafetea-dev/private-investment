@@ -228,8 +228,10 @@ async function decrypt(env, pw) {
   return JSON.parse(new TextDecoder().decode(pt));
 }
 async function unlock(pw, remember) {
+  pw = pw.trim(); // 與後端一致：密碼前後空白不算
   const env = await getJSON("data/private.enc.json");
-  const data = await decrypt(env, pw); // 密碼錯會丟出例外
+  let data;
+  try { data = await decrypt(env, pw); } catch { throw new Error("BAD_PASSWORD"); }
   PRIV.pw = pw; PRIV.data = data;
   if (remember) ls.set(pw);
   $("#me-locked").hidden = true; $("#me-body").hidden = false; $("#lock-ico").textContent = "";
@@ -238,14 +240,14 @@ async function unlock(pw, remember) {
 async function tryRemembered() {
   const pw = ls.get();
   if (!pw || !STATE.status?.private_available) return;
-  try { await unlock(pw, false); } catch { ls.del(); }
+  try { await unlock(pw, false); } catch (e) { if (e.message === "BAD_PASSWORD") ls.del(); } // 網路失敗不刪
 }
 $("#unlock-form").onsubmit = async (e) => {
   e.preventDefault();
   const btn = $("#unlock-btn"); btn.disabled = true; btn.textContent = "解鎖中…"; $("#unlock-err").textContent = "";
   try { await unlock($("#pw").value, $("#remember").checked); $("#pw").value = ""; }
   catch (err) {
-    $("#unlock-err").textContent = String(err).includes("private.enc.json") ? "私人區資料還沒產生，請稍後再試。" : "密碼不對，請再試一次。";
+    $("#unlock-err").textContent = err.message === "BAD_PASSWORD" ? "密碼不對，請再試一次。" : "讀不到私人區資料，請稍後再試。";
   } finally { btn.disabled = false; btn.textContent = "解鎖"; }
 };
 $("#lock-btn").onclick = () => {
@@ -283,6 +285,7 @@ function renderPrivate() {
       : `<span class="pill warn"><span class="dot"></span>LINE 未設定：警示只顯示在這裡</span>`,
   ];
   if (today && d.max_messages_per_day) pills.push(`<span class="pill">今日一般推播 ${today.sent || 0} / ${d.max_messages_per_day}</span>`);
+  if (d.line_configured && d.max_messages_per_month) pills.push(`<span class="pill">本月 LINE ${d.month_sent || 0} / ${d.max_messages_per_month} 則</span>`);
   let banner = "";
   if (d.watch_source === "example") banner = `<div class="banner warn">目前用的是<b>範例自選股</b>（watchlist.example.csv）。把你自己的清單設到 GitHub Secret <code>WATCHLIST_CSV</code> 後，這裡就會換成你的持股與提醒價（做法見 README）。</div>`;
   $("#me-status").innerHTML = pills.join("") + (banner ? `<div style="flex-basis:100%">${banner}</div>` : "");
@@ -389,6 +392,7 @@ function watchCard(w, q, pm, hit) {
 
 const MSG_STATUS = {
   sent: ["good", "已推播"], no_line: ["warn", "未推播：LINE 未設定"], over_cap: ["", "超過每日上限，未推播"],
+  over_month: ["warn", "本月 LINE 額度將用完，未推播"],
   dry_run: ["info", "測試模式"], failed: ["up", "推播失敗"],
 };
 function renderDay() {

@@ -21,5 +21,7 @@
   "start_time": "08:50",
   "close_summary_time": "13:35",
   "digest_minutes": 15,
-  "max_messages_per_day": 12
+  "max_messages_per_day": 12,
+  "max_messages_per_month": 200,
+  "monthly_reserve_for_urgent": 40
 }

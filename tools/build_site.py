@@ -79,6 +79,8 @@ def main():
             "days": days, "errors": state.get("errors", [])[-20:],
             "line_configured": state.get("line_configured", False),
             "max_messages_per_day": state.get("max_messages_per_day"),
+            "max_messages_per_month": state.get("max_messages_per_month"),
+            "month_sent": state.get("month_sent", 0),
             "postmarket_watch": pm_watch,
         }
         (out / "data" / "private.enc.json").write_text(json.dumps(encrypt_json(payload, pw)), encoding="utf-8")

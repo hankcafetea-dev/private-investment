@@ -146,7 +146,7 @@ def fetch_yahoo(codes: list[str]) -> dict[str, dict]:
             px, ref = meta.get("regularMarketPrice"), meta.get("chartPreviousClose") or meta.get("previousClose")
             if not px:
                 continue
-            t = dt.datetime.fromtimestamp(meta.get("regularMarketTime", time.time()), TZ)
+            t = dt.datetime.fromtimestamp(meta.get("regularMarketTime") or time.time(), TZ)
             out[c] = {
                 "name": meta.get("shortName") or "", "close": float(px), "ref": ref,
                 "change_rate": (px / ref - 1) * 100 if ref else 0.0,
@@ -176,6 +176,9 @@ def fetch_prev_volume(today: dt.date) -> dict[str, float]:
         except Exception as e:  # noqa: BLE001
             _log(f"昨量資料讀取失敗：{type(e).__name__}")
             continue
+        if not isinstance(rows, list):  # 被限流時會回錯誤物件
+            _log("昨量資料格式不對，這輪略過")
+            continue
         for r in rows:
             if str(r.get("Date", "")).strip() == roc(today):
                 break  # 已經是今天收盤後的資料，不能當昨量
@@ -188,15 +191,22 @@ def fetch_prev_volume(today: dt.date) -> dict[str, float]:
 # ----------------------------------------------------------------------------
 # 推播（沒有 LINE 金鑰就只記錄）
 # ----------------------------------------------------------------------------
-def send(D: dict, text: str, now: dt.datetime, cap: int, dry: bool, force: bool = False) -> None:
+def send(D: dict, M: dict, s: dict, text: str, now: dt.datetime, dry: bool, force: bool = False) -> None:
+    """D＝當天狀態，M＝當月狀態。一般訊息受每日上限；所有訊息都受每月上限（LINE 免費方案有月額度），
+    並保留最後一段額度只給關鍵警示與收盤摘要。"""
     text = text.strip()
     if not text:
         return
     if len(text) > 4900:
         text = text[:4880] + "\n…（內容過長已截斷）"
+    cap = int(s["max_messages_per_day"])
+    mcap = int(s.get("max_messages_per_month", 200))
+    reserve = int(s.get("monthly_reserve_for_urgent", 40))
     rec = {"t": f"{now:%H:%M}", "text": text, "status": "sent"}
     token, user = os.getenv("LINE_CHANNEL_TOKEN", "").strip(), os.getenv("LINE_USER_ID", "").strip()
-    if not force and D["sent"] >= cap:
+    if M["sent"] >= mcap or (not force and M["sent"] >= mcap - reserve):
+        rec["status"] = "over_month"
+    elif not force and D["sent"] >= cap:
         rec["status"] = "over_cap"
     elif not (token and user):
         rec["status"] = "no_line"
@@ -219,8 +229,10 @@ def send(D: dict, text: str, now: dt.datetime, cap: int, dry: bool, force: bool 
         except Exception as e:  # noqa: BLE001
             rec["status"] = "failed"
             _log(f"LINE 推播失敗：{type(e).__name__}")
-        if rec["status"] == "sent" and not force:
-            D["sent"] += 1
+        if rec["status"] == "sent":
+            M["sent"] += 1
+            if not force:
+                D["sent"] += 1
     D["messages"].append(rec)
 
 
@@ -261,9 +273,9 @@ def tick(now: dt.datetime, state: dict, dry: bool) -> dict:
     t = now.time()
     in_session = trading_day and core.hm("09:00") <= t <= core.hm("13:31")
 
-    if in_session and D["prev_volume"] is None:
+    if in_session and not D["prev_volume"]:  # 沒拿到就下一輪再試
         pv = fetch_prev_volume(now.date())
-        D["prev_volume"] = {c: pv[c] for c in codes if c in pv}
+        D["prev_volume"] = {c: pv[c] for c in codes if c in pv} or None
     for c, q in quotes.items():
         q["yesterday_volume"] = (D["prev_volume"] or {}).get(c)
 
@@ -302,19 +314,23 @@ def tick(now: dt.datetime, state: dict, dry: bool) -> dict:
                         D["last_flush"] = None  # 新聞到點就送
 
     cap = int(s["max_messages_per_day"])
+    months = state.setdefault("months", {})
+    M = months.setdefault(f"{now:%Y%m}", {"sent": 0})
+    for k in sorted(months)[:-3]:
+        del months[k]
     closing = trading_day and t >= core.hm(s["close_summary_time"]) and not D["closed"]
     last_flush = dt.datetime.fromisoformat(D["last_flush"]) if D["last_flush"] else None
     if urgent:
-        send(D, f"⏰ {now:%H:%M} 關鍵警示\n" + "\n\n".join(urgent + pending), now, cap, dry, force=True)
+        send(D, M, s, f"⏰ {now:%H:%M} 關鍵警示\n" + "\n\n".join(urgent + pending), now, dry, force=True)
         pending.clear()
         D["last_flush"] = now.isoformat()
     elif pending and (last_flush is None or (now - last_flush).total_seconds() >= s["digest_minutes"] * 60 or closing):
-        send(D, f"⏰ {now:%H:%M}\n" + "\n\n".join(pending), now, cap, dry)
+        send(D, M, s, f"⏰ {now:%H:%M}\n" + "\n\n".join(pending), now, dry)
         pending.clear()
         D["last_flush"] = now.isoformat()
 
     if closing and quotes:
-        send(D, core.close_summary(watch, quotes, info, now.date()), now, cap, dry, force=True)
+        send(D, M, s, core.close_summary(watch, quotes, info, now.date()), now, dry, force=True)
         D["closed"] = True
         note("close", "已送出收盤摘要", False)
 
@@ -328,6 +344,8 @@ def tick(now: dt.datetime, state: dict, dry: bool) -> dict:
     state["errors"] = (state.get("errors", []) + _errors)[-50:]
     state["line_configured"] = bool(os.getenv("LINE_CHANNEL_TOKEN", "").strip() and os.getenv("LINE_USER_ID", "").strip())
     state["max_messages_per_day"] = cap
+    state["max_messages_per_month"] = int(s.get("max_messages_per_month", 200))
+    state["month_sent"] = M["sent"]
     return state
 
 
@@ -343,15 +361,24 @@ def main():
         print("::warning::尚未設定 SITE_PASSWORD，私人資料無法加密保存，盤中監控這次略過。")
         return
     os.environ.setdefault("CLOSE_SUMMARY_FOOTER", "盤後籌碼報告約 21:40 自動更新到網頁")
-    now = dt.datetime.strptime(a.now, "%Y-%m-%d %H:%M").replace(tzinfo=TZ) if a.now else dt.datetime.now(TZ)
+    real_now = dt.datetime.now(TZ)
+    now = dt.datetime.strptime(a.now, "%Y-%m-%d %H:%M").replace(tzinfo=TZ) if a.now else real_now
+    # 用 --now 模擬「今天」會把真實的去重、收盤狀態佔掉，所以這種測試不寫回狀態檔
+    save = not (a.now and now.date() == real_now.date())
     path = Path(a.data_dir) / "private" / "state.enc.json"
-    state = tick(now, load_state(path, pw), a.dry_run)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(encrypt_json(state, pw)), encoding="utf-8")
-    D = state["days"].get(f"{now:%Y%m%d}", {})
-    # 公開紀錄只印筆數，不印內容
-    print(f"盤中檢查完成 {now:%Y-%m-%d %H:%M}｜交易日：{D.get('trading_day')}｜"
-          f"今日警示 {len(D.get('alerts', []))} 筆｜訊息 {len(D.get('messages', []))} 則｜錯誤 {len(_errors)} 筆")
+    state = load_state(path, pw)
+    try:
+        state = tick(now, state, a.dry_run)
+    except Exception as e:  # noqa: BLE001  不讓 traceback（可能帶出網址、代號）進公開紀錄
+        _log(f"盤中檢查中斷：{type(e).__name__}")
+        state["errors"] = (state.get("errors", []) + _errors)[-50:]
+        state["last_tick"] = now.isoformat(timespec="seconds")
+        print("::warning::這一輪盤中檢查中斷，原因記在加密狀態檔（網頁「我的盯盤」→ 系統紀錄）")
+    if save:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(encrypt_json(state, pw)), encoding="utf-8")
+    # 公開紀錄不印警示筆數等任何能推敲自選股的資訊
+    print(f"盤中檢查完成{'（模擬今天，未存檔）' if not save else ''}")
 
 
 if __name__ == "__main__":

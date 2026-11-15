@@ -16,6 +16,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 ITERATIONS = 310_000
+PAD_BLOCK = 32 * 1024  # 密文長度一律補到 32KB 的倍數，旁人無法從檔案大小推敲警示筆數
 
 
 def _key(password: str, salt: bytes, iterations: int) -> bytes:
@@ -26,7 +27,8 @@ def _key(password: str, salt: bytes, iterations: int) -> bytes:
 def encrypt_json(obj, password: str) -> dict:
     salt, iv = os.urandom(16), os.urandom(12)
     data = json.dumps(obj, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    ct = AESGCM(_key(password, salt, ITERATIONS)).encrypt(iv, data, None)
+    data += b" " * (-len(data) % PAD_BLOCK)  # JSON 尾端空白不影響解析
+    ct =AESGCM(_key(password, salt, ITERATIONS)).encrypt(iv, data, None)
     b64 = lambda x: base64.b64encode(x).decode("ascii")  # noqa: E731
     return {"v": 1, "alg": "AES-256-GCM", "kdf": "PBKDF2-SHA256", "iter": ITERATIONS,
             "salt": b64(salt), "iv": b64(iv), "ct": b64(ct)}

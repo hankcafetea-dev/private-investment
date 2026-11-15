@@ -69,7 +69,7 @@ gh workflow run auto.yml -f task=intraday
    gh secret set LINE_USER_ID
    ```
 
-關鍵警示（停損、停利、到價、突破、漲跌停）立即推播；一般警示每 15 分鐘合併一則，每天最多 12 則（`tw_line_alert/settings.json` 可改）；收盤摘要不受上限。
+關鍵警示（停損、停利、到價、突破、漲跌停）立即推播；一般警示每 15 分鐘合併一則，每天最多 12 則；收盤摘要不受每日上限。另有每月上限 200 則（LINE 免費方案有月額度），最後 40 則只留給關鍵警示與收盤摘要。這些數字都在 `tw_line_alert/settings.json`，請依你 LINE 官方帳號「方案」頁的額度調整。
 
 ## 手動執行
 
