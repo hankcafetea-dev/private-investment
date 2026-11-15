@@ -20,23 +20,38 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<!-- 線條圖示（同一套筆畫粗細，取代 emoji） -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10.5" width="16" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 4v5h-5M4 20v-5h5"/><path d="M5.6 9A7 7 0 0 1 19 8.5M18.4 15A7 7 0 0 1 5 15.5"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.2v.3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.7 2.7L16.2 9.5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.8v.3"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  </defs>
+</svg>
+
 <header class="top">
   <div class="wrap top-inner">
     <div class="brand">
       <span class="logo" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M6 23l7-8 5 4 8-10" /></svg></span>
       <div>
         <h1>台股籌碼盯盤</h1>
-        <p class="sub"><span id="status-line">讀取中…</span><button type="button" class="refresh" id="refresh-btn" aria-label="立即更新">↻ 更新</button></p>
+        <p class="sub"><span id="status-line" aria-live="polite">讀取中…</span><button type="button" class="refresh" id="refresh-btn"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>更新</button></p>
       </div>
     </div>
-    <nav class="tabs" role="tablist">
-      <button role="tab" id="tab-pm" aria-selected="true" aria-controls="view-pm">盤後籌碼</button>
-      <button role="tab" id="tab-me" aria-selected="false" aria-controls="view-me">我的盯盤 <span class="lock" id="lock-ico">🔒</span></button>
+    <nav class="tabs" role="tablist" aria-label="頁面">
+      <button role="tab" id="tab-pm" aria-selected="true" aria-controls="view-pm"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg><span>盤後籌碼</span></button>
+      <button role="tab" id="tab-me" aria-selected="false" aria-controls="view-me"><svg class="ic" aria-hidden="true"><use href="#i-eye"/></svg><span>我的盯盤</span><svg class="ic lock" id="lock-ico" role="img" aria-label="已上鎖"><use href="#i-lock"/></svg></button>
     </nav>
   </div>
 </header>
 
-<main class="wrap">
+<main class="wrap" id="main" aria-busy="true">
   <!-- ================= 盤後籌碼（公開資料） ================= -->
   <section id="view-pm" role="tabpanel" aria-labelledby="tab-pm">
     <div class="toolbar">
@@ -45,6 +60,12 @@
         <select id="pm-date"></select>
       </label>
       <p class="muted small" id="pm-meta"></p>
+    </div>
+
+    <div id="pm-loading" class="skeleton" aria-hidden="true">
+      <div class="kpis"><i></i><i></i><i></i><i></i></div>
+      <i class="sk-bar"></i>
+      <div class="sec-grid"><i class="sk-card"></i><i class="sk-card"></i></div>
     </div>
 
     <div id="pm-empty" class="empty" hidden>
@@ -63,7 +84,8 @@
           <span class="muted small" id="all-count"></span>
         </div>
         <div class="filters">
-          <input id="q" type="search" placeholder="搜尋代號或名稱，例如 2330、台積電" autocomplete="off">
+          <label class="sr-only" for="q">搜尋個股</label>
+          <input id="q" type="search" placeholder="搜尋代號或名稱，例如 2330、台積電" autocomplete="off" enterkeyhint="search">
           <div class="chips" id="sig-chips"></div>
         </div>
         <div class="table-wrap"><table class="grid" id="all-table"></table></div>
@@ -71,7 +93,7 @@
       </section>
 
       <details class="card notes">
-        <summary>指標怎麼看</summary>
+        <summary>指標怎麼看<svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
         <ul>
           <li><b>融資增減</b>：融資餘額較前日變化。融資族群以散戶為主，常用來代表散戶動向。</li>
           <li><b>融資使用率（估）</b>：融資餘額 ÷（融資餘額＋剩餘可融資額度），60% 以上代表散戶槓桿擁擠。</li>
@@ -88,11 +110,18 @@
   <section id="view-me" role="tabpanel" aria-labelledby="tab-me" hidden>
     <div id="me-locked" class="unlock">
       <div class="unlock-card">
-        <div class="unlock-ico" aria-hidden="true">🔒</div>
+        <div class="unlock-ico" aria-hidden="true"><svg class="ic"><use href="#i-lock"/></svg></div>
         <h2>我的盯盤</h2>
         <p class="muted">持股、成本、提醒價與警示紀錄都加密保存，輸入密碼後只在你的瀏覽器裡解開。</p>
         <form id="unlock-form">
-          <input id="pw" type="password" placeholder="網頁密碼（SITE_PASSWORD）" autocomplete="current-password" required>
+          <!-- 給密碼管理員／iCloud 鑰匙圈辨識用的帳號欄（不顯示） -->
+          <input type="text" name="username" autocomplete="username" value="籌碼盯盤" hidden readonly>
+          <label class="field-label" for="pw">網頁密碼</label>
+          <div class="pw-row">
+            <input id="pw" type="password" autocomplete="current-password" required aria-describedby="pw-hint unlock-err" enterkeyhint="go">
+            <button type="button" class="pw-toggle" id="pw-toggle" aria-label="顯示密碼" aria-pressed="false"><svg class="ic" aria-hidden="true"><use href="#i-eye"/></svg></button>
+          </div>
+          <p class="hint" id="pw-hint">就是你在 GitHub 設定的 SITE_PASSWORD</p>
           <label class="check"><input type="checkbox" id="remember"> 在這台裝置記住密碼</label>
           <button type="submit" class="primary" id="unlock-btn">解鎖</button>
           <p class="err" id="unlock-err" role="alert"></p>
@@ -132,7 +161,7 @@
       </section>
 
       <details class="card" id="err-card" hidden>
-        <summary>系統紀錄（抓取失敗等）</summary>
+        <summary>系統紀錄（抓取失敗等）<svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
         <ul class="mono small" id="errors"></ul>
       </details>
 

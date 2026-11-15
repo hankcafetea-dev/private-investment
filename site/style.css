@@ -9,11 +9,11 @@
   --accent-soft: #fbe9e7;
   --up: #d1221a;          /* 台股慣例：紅漲 */
   --up-soft: #fdeceb;
-  --down: #0f8a4a;        /* 綠跌 */
+  --down: #0a7540;        /* 綠跌（對比 ≥4.5:1） */
   --down-soft: #e5f5ec;
-  --warn: #b26a00;
+  --warn: #9a5b00;
   --warn-soft: #fff3df;
-  --good: #0f8a4a;
+  --good: #0a7540;
   --good-soft: #e5f5ec;
   --info: #2a5db0;
   --info-soft: #e8effb;
@@ -247,4 +247,116 @@ details summary { cursor: pointer; font-weight: 700; }
   .kpi .value { font-size: 20px; }
   .watch-grid { grid-template-columns: minmax(0, 1fr); }
   .toolbar { align-items: flex-start; }
+}
+
+/* =====================================================================
+   UI/UX 審查修正（ui-ux-pro-max 清單，2026-11-15）
+   觸控目標 ≥44pt、iOS 輸入框不自動放大、SVG 圖示、按壓回饋、
+   手機底部分頁列、表格首欄固定、載入骨架、密碼欄標籤與顯示切換
+   ===================================================================== */
+:root { --tap: 44px; --ease: cubic-bezier(.2, .7, .3, 1); --t-press: 120ms; --tabbar-h: 56px; }
+body { font-size: 16px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* 圖示：同一套線條、同一粗細 */
+.ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -4px; }
+
+/* 按壓回饋（不改變版面大小）；只有滑鼠裝置才有 hover */
+button, select, summary, .chip, th.sortable { transition: background-color var(--t-press) var(--ease), opacity var(--t-press) var(--ease), color var(--t-press) var(--ease); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+button:active:not(:disabled), summary:active, th.sortable:active { opacity: .62; }
+@media (hover: hover) { .chip:hover, .ghost:hover, .more:hover, .refresh:hover { background: var(--surface-2); } }
+
+/* 輸入框：16px 以上 iPhone 才不會自動放大畫面；高度 44 */
+select, input[type="search"], input[type="password"], input[type="text"] { font-size: 16px; min-height: var(--tap); padding: 9px 12px; }
+.primary, .ghost, .more { min-height: var(--tap); }
+.ghost { padding: 9px 22px; }
+
+/* 更新鈕：外觀小、可點範圍擴到 44 */
+.refresh { position: relative; display: inline-flex; align-items: center; gap: 3px; padding: 0 9px 0 6px; line-height: 24px; }
+.refresh .ic { width: 15px; height: 15px; }
+.refresh::after { content: ""; position: absolute; inset: -10px -6px; }
+.refresh[aria-busy="true"] .ic { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 分頁：桌機在頁首，44 高 */
+.tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 16px; }
+.tabs .lock { width: 15px; height: 15px; color: var(--muted); }
+
+/* 篩選晶片：外觀 36、間距 8、可點範圍 44 */
+.chips { gap: 8px; }
+.chip { position: relative; min-height: 36px; padding: 6px 14px; }
+.chip::after { content: ""; position: absolute; inset: -4px 0; }
+
+/* 可排序欄位、展開區：點擊高度 44 */
+.grid th.sortable { padding-top: 13px; padding-bottom: 13px; }
+details summary { min-height: var(--tap); display: flex; align-items: center; justify-content: space-between; list-style: none; }
+details summary::-webkit-details-marker { display: none; }
+details .chev { transition: transform 200ms var(--ease); color: var(--muted); }
+details[open] .chev { transform: rotate(180deg); }
+
+/* 表格：左右捲動時代號固定在左邊，才知道是哪一檔 */
+.grid th:first-child, .grid td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); box-shadow: 1px 0 0 var(--line); }
+.grid th:first-child { z-index: 2; }
+.grid tbody tr:hover td:first-child { background: var(--surface-2); }
+
+/* 判讀列圖示 */
+.verdict { align-items: center; }
+.verdict .ic { width: 22px; height: 22px; }
+
+/* 價格梯標籤最小 12px */
+.ladder .mk b, .ladder .now i { font-size: 12px; }
+.ladder { height: 62px !important; }
+
+/* LINE 訊息：整列都可以點開，44 高 */
+.msg { padding: 0; overflow: hidden; }
+.msg-toggle { display: block; width: 100%; text-align: left; background: none; border: 0; color: inherit; padding: 10px 12px; min-height: var(--tap); cursor: pointer; font: inherit; }
+.msg-toggle .msg-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
+.msg-toggle .chev { color: var(--muted); transition: transform 200ms var(--ease); }
+.msg.open .msg-toggle .chev { transform: rotate(180deg); }
+.msg pre { padding: 0 12px; margin: 0; }
+.msg.open pre { padding-bottom: 12px; }
+.msg .first { margin-top: 4px; }
+
+/* 解鎖卡 */
+.unlock-ico { width: 56px; height: 56px; margin: 0 auto 10px; border-radius: 16px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 0; }
+.unlock-ico .ic { width: 28px; height: 28px; }
+.field-label { font-weight: 600; font-size: 14px; }
+.pw-row { position: relative; }
+.pw-row input { width: 100%; padding-right: 52px; }
+.pw-toggle { position: absolute; right: 0; top: 0; width: var(--tap); height: 100%; min-height: var(--tap); border: 0; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.hint { margin: -4px 0 0; font-size: 13px; color: var(--muted); }
+.check { min-height: var(--tap); }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+
+/* 載入骨架 */
+.skeleton i { display: block; background: var(--surface-2); border-radius: var(--radius); }
+.skeleton .kpis i { height: 92px; }
+.skeleton .sk-bar { height: 46px; margin-bottom: 20px; }
+.skeleton .sk-card { height: 300px; }
+@media (prefers-reduced-motion: no-preference) { .skeleton i { animation: pulse 1.4s ease-in-out infinite; } }
+@media (prefers-reduced-motion: reduce) { .refresh[aria-busy="true"] .ic { animation: none; } details .chev, .msg-toggle .chev { transition: none; } }
+
+/* ---------- 手機：底部分頁列（拇指好按，像 iOS App） ---------- */
+@media (max-width: 560px) {
+  .tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; width: auto;
+    display: flex; gap: 0; padding: 0 0 env(safe-area-inset-bottom, 0px); border-radius: 0;
+    background: color-mix(in srgb, var(--surface) 92%, transparent); -webkit-backdrop-filter: saturate(1.6) blur(16px); backdrop-filter: saturate(1.6) blur(16px);
+    border-top: 1px solid var(--line);
+  }
+  .tabs button {
+    flex: 1; flex-direction: column; gap: 2px; min-height: var(--tabbar-h); padding: 6px 4px 4px; border-radius: 0;
+    font-size: 12px; font-weight: 600; color: var(--muted); background: none; box-shadow: none;
+  }
+  .tabs button[aria-selected="true"] { color: var(--accent); background: none; box-shadow: none; }
+  .tabs button .ic { width: 24px; height: 24px; vertical-align: 0; }
+  .tabs .lock { position: absolute; top: 4px; left: calc(50% + 9px); width: 16px; height: 16px; padding: 2px; margin: 0;
+    border-radius: 50%; background: var(--surface); color: var(--muted); stroke-width: 2.2; }
+  .tabs button { position: relative; }
+  main { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 8px); }
+  .foot { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px); }
+  .brand h1 { font-size: 17px; }
+  .toolbar { flex-direction: column; align-items: stretch; gap: 6px; }
+  .toolbar .field { justify-content: space-between; }
+  .toolbar select { flex: 1; }
 }

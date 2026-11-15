@@ -116,6 +116,7 @@ async function loadIndex() {
   const sel = $("#pm-date");
   if (!STATE.dates.length) {
     $("#pm-empty").hidden = false; $("#pm-body").hidden = true; sel.parentElement.hidden = true;
+    doneLoading();
     return;
   }
   const cur = sel.value;
@@ -131,7 +132,7 @@ $("#pm-date").onchange = (e) => loadReport(e.target.value);
 async function loadReport(date) {
   const r = await getJSON(`data/postmarket/${date}.json`);
   STATE.report = r;
-  $("#pm-empty").hidden = true; $("#pm-body").hidden = false;
+  $("#pm-empty").hidden = true; $("#pm-body").hidden = false; doneLoading();
   const m = r.market;
   $("#pm-meta").textContent = `上市普通股 ${m.stock_count} 檔，成交值 3 億以上 ${m.liquid_count} 檔｜產生於 ${hhmm(r.generated_at)}`;
 
@@ -146,7 +147,8 @@ async function loadReport(date) {
   $("#pm-kpis").innerHTML = k.join("");
   const v = $("#pm-verdict");
   v.className = `verdict ${m.verdict}`;
-  v.innerHTML = `<span>${m.verdict === "warn" ? "⚠" : m.verdict === "good" ? "✓" : "ⓘ"}</span><span>判讀：${esc(m.verdict_text)}</span>`;
+  const vi = { warn: ["i-warn", "留意"], good: ["i-check", "偏多"], neutral: ["i-info", "中性"] }[m.verdict] || ["i-info", "中性"];
+  v.innerHTML = `<svg class="ic" role="img" aria-label="${vi[1]}"><use href="#${vi[0]}"/></svg><span>判讀：${esc(m.verdict_text)}</span>`;
 
   const groups = {};
   r.sections.forEach((s) => (groups[s.group] = groups[s.group] || []).push(s));
@@ -234,7 +236,7 @@ async function unlock(pw, remember) {
   try { data = await decrypt(env, pw); } catch { throw new Error("BAD_PASSWORD"); }
   PRIV.pw = pw; PRIV.data = data;
   if (remember) ls.set(pw);
-  $("#me-locked").hidden = true; $("#me-body").hidden = false; $("#lock-ico").textContent = "";
+  $("#me-locked").hidden = true; $("#me-body").hidden = false; $("#lock-ico").style.display = "none";
   renderPrivate();
 }
 async function tryRemembered() {
@@ -252,7 +254,7 @@ $("#unlock-form").onsubmit = async (e) => {
 };
 $("#lock-btn").onclick = () => {
   PRIV.pw = null; PRIV.data = null; ls.del();
-  $("#me-body").hidden = true; $("#me-locked").hidden = false; $("#lock-ico").textContent = "🔒";
+  $("#me-body").hidden = true; $("#me-locked").hidden = false; $("#lock-ico").style.display = "";
 };
 $("#day-pick").onchange = (e) => { PRIV.day = e.target.value; renderDay(); };
 
@@ -406,20 +408,34 @@ function renderDay() {
   $("#messages").innerHTML = ms.length ? ms.map((m, i) => {
     const st = MSG_STATUS[m.status] || MSG_STATUS[m.status?.startsWith("failed") ? "failed" : ""] || ["", m.status];
     const first = esc(m.text.split("\n").slice(0, 2).join("　"));
-    return `<div class="msg" data-i="${i}"><div class="msg-head"><span><b>${esc(m.t)}</b> <span class="tag ${st[0]}">${st[1]}</span></span>
-      <button type="button">展開</button></div><div class="first">${first}</div><pre>${esc(m.text)}</pre></div>`;
+    return `<div class="msg" data-i="${i}"><button type="button" class="msg-toggle" aria-expanded="false">
+      <span class="msg-head"><span><b>${esc(m.t)}</b> <span class="tag ${st[0]}">${st[1]}</span></span><svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></span>
+      <span class="first">${first}</span></button><pre>${esc(m.text)}</pre></div>`;
   }).join("") : `<p class="muted">這天沒有送出訊息</p>`;
 }
 $("#messages").onclick = (e) => {
-  const b = e.target.closest(".msg-head button"); if (!b) return;
-  const box = b.closest(".msg"); box.classList.toggle("open");
-  b.textContent = box.classList.contains("open") ? "收合" : "展開";
+  const b = e.target.closest(".msg-toggle"); if (!b) return;
+  const box = b.closest(".msg"); const open = box.classList.toggle("open");
+  b.setAttribute("aria-expanded", String(open));
+};
+
+/* ---------------- 載入狀態、密碼顯示切換 ---------------- */
+function doneLoading() { $("#pm-loading").hidden = true; $("#main").setAttribute("aria-busy", "false"); }
+$("#pw-toggle").onclick = (e) => {
+  const b = e.currentTarget, pw = $("#pw"), show = pw.type === "password";
+  pw.type = show ? "text" : "password";
+  b.setAttribute("aria-pressed", String(show)); b.setAttribute("aria-label", show ? "隱藏密碼" : "顯示密碼");
+  b.querySelector("use").setAttribute("href", show ? "#i-eye-off" : "#i-eye");
+  pw.focus();
 };
 
 /* ---------------- 啟動與自動更新 ---------------- */
 async function refresh(first = false) {
   let s;
-  try { s = await getJSON("data/status.json"); } catch { return; }
+  try { s = await getJSON("data/status.json"); } catch {
+    if (first) { $("#status-line").textContent = "連不上伺服器，請稍後按「更新」"; await loadIndex(); } // 離線時仍顯示快取的報告
+    return;
+  }
   const changed = !STATE.status || s.built_at !== STATE.status.built_at;
   const pmChanged = !STATE.status || s.postmarket_latest !== STATE.status.postmarket_latest;
   STATE.status = s;
@@ -432,14 +448,20 @@ async function refresh(first = false) {
   } else if (PRIV.data) renderPrivate(); // 更新「幾分鐘前」
 }
 $("#refresh-btn").onclick = async (e) => {
-  const b = e.currentTarget; b.classList.add("spin"); b.disabled = true;
-  try { await refresh(); if (STATE.status) await loadIndex(); } finally { b.classList.remove("spin"); b.disabled = false; }
+  const b = e.currentTarget; b.setAttribute("aria-busy", "true"); b.disabled = true;
+  try { await refresh(); if (STATE.status) await loadIndex(); } finally { b.removeAttribute("aria-busy"); b.disabled = false; }
 };
 // 主畫面 App 從背景切回來時，計時器可能被系統暫停過，回來就馬上更新
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
 window.addEventListener("pageshow", (e) => { if (e.persisted) refresh(); });
 
 if ("serviceWorker" in navigator) {
+  // 新版網頁接手時自動重新整理一次，改版不用等下次開啟（第一次安裝不重整）
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (hadController && !reloaded) { reloaded = true; location.reload(); }
+  });
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => { /* 不支援就當一般網頁 */ }));
 }
 
