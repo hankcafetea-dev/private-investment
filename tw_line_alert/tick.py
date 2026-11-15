@@ -377,8 +377,10 @@ def main():
     if save:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(encrypt_json(state, pw)), encoding="utf-8")
-    # 公開紀錄不印警示筆數等任何能推敲自選股的資訊
-    print(f"盤中檢查完成{'（模擬今天，未存檔）' if not save else ''}")
+    # 公開紀錄不印警示筆數等任何能推敲自選股的資訊；只印行情來源是否正常
+    srcs = {q.get("source") for q in (state.get("snapshot") or {}).get("quotes", {}).values()}
+    src = "證交所正常" if srcs == {"證交所"} else "部分改用 Yahoo 備援" if "Yahoo" in srcs else "行情讀取失敗" if not srcs else "正常"
+    print(f"盤中檢查完成{'（模擬今天，未存檔）' if not save else ''}｜行情：{src}")
 
 
 if __name__ == "__main__":
