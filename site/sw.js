@@ -11,7 +11,10 @@ const SHELL_FILES = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));
+  // cache: "reload"＝不用瀏覽器的 HTTP 快取（GitHub Pages 會快取 10 分鐘），否則新版 SW 可能存到舊檔，新舊混用
+  e.waitUntil(caches.open(SHELL)
+    .then((c) => c.addAll(SHELL_FILES.map((u) => new Request(u, { cache: "reload" }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
@@ -44,7 +47,8 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     caches.open(SHELL).then(async (c) => {
       const hit = await c.match(req, { ignoreSearch: req.mode === "navigate" });
-      const net = fetch(req).then((res) => { if (res.ok && url.search === "") c.put(req, res.clone()); return res; }).catch(() => null);
+      const net = fetch(req.url, { cache: "no-cache" })  // 背景更新時向伺服器確認是不是最新版
+        .then((res) => { if (res.ok && url.search === "") c.put(req, res.clone()); return res; }).catch(() => null);
       return hit || (await net) || (req.mode === "navigate" ? c.match("index.html") : Response.error());
     }),
   );
