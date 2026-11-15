@@ -34,6 +34,16 @@ gh secret set SITE_PASSWORD
 gh workflow run auto.yml -f task=intraday
 ```
 
+## 放到 iPhone 主畫面（PWA）
+
+1. 用 iPhone 的 **Safari** 打開 https://hankcafetea-dev.github.io/private-investment/
+2. 點下方「分享」按鈕 →「加入主畫面」→ 名稱會是「籌碼盯盤」→ 加入。
+3. 從主畫面打開就是全螢幕 App。第一次進「我的盯盤」要再輸入一次密碼，勾「在這台裝置記住密碼」之後就不用再輸入（主畫面 App 的儲存空間跟 Safari 是分開的）。
+
+- App 從背景切回來會自動抓最新資料，左上也有「↻ 更新」可以手動更新。
+- 沒網路時照樣打得開，顯示上一次抓到的資料。
+- 網頁改版後，App 下一次打開會自動換成新版（最多晚一次開啟）。
+
 ## 換成你自己的自選股
 
 1. 複製 `watchlist.example.csv` 為 `watchlist.csv`（這個檔名已列入 `.gitignore`，不會被上傳）。
