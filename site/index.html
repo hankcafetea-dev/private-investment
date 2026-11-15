@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>台股籌碼盯盤</title>
+<meta name="description" content="每天自動更新的台股盤後籌碼報告，與加密保護的個人盯盤頁。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23b3261e'/%3E%3Cpath d='M7 22l6-7 5 4 7-9' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-inner">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M6 23l7-8 5 4 8-10" /></svg></span>
+      <div>
+        <h1>台股籌碼盯盤</h1>
+        <p class="sub" id="status-line">讀取中…</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tab-pm" aria-selected="true" aria-controls="view-pm">盤後籌碼</button>
+      <button role="tab" id="tab-me" aria-selected="false" aria-controls="view-me">我的盯盤 <span class="lock" id="lock-ico">🔒</span></button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ================= 盤後籌碼（公開資料） ================= -->
+  <section id="view-pm" role="tabpanel" aria-labelledby="tab-pm">
+    <div class="toolbar">
+      <label class="field">
+        <span>報告日期</span>
+        <select id="pm-date"></select>
+      </label>
+      <p class="muted small" id="pm-meta"></p>
+    </div>
+
+    <div id="pm-empty" class="empty" hidden>
+      <h2>還沒有盤後報告</h2>
+      <p>每個交易日 21:40 會自動產生；第一份報告產生後這裡就會出現。</p>
+    </div>
+
+    <div id="pm-body" hidden>
+      <div class="kpis" id="pm-kpis"></div>
+      <div class="verdict" id="pm-verdict"></div>
+      <div id="pm-sections"></div>
+
+      <section class="card">
+        <div class="card-head">
+          <h3>全部個股</h3>
+          <span class="muted small" id="all-count"></span>
+        </div>
+        <div class="filters">
+          <input id="q" type="search" placeholder="搜尋代號或名稱，例如 2330、台積電" autocomplete="off">
+          <div class="chips" id="sig-chips"></div>
+        </div>
+        <div class="table-wrap"><table class="grid" id="all-table"></table></div>
+        <button class="more" id="all-more" hidden>顯示更多</button>
+      </section>
+
+      <details class="card notes">
+        <summary>指標怎麼看</summary>
+        <ul>
+          <li><b>融資增減</b>：融資餘額較前日變化。融資族群以散戶為主，常用來代表散戶動向。</li>
+          <li><b>融資使用率（估）</b>：融資餘額 ÷（融資餘額＋剩餘可融資額度），60% 以上代表散戶槓桿擁擠。</li>
+          <li><b>券資比</b>：融券餘額 ÷ 融資餘額，市場慣例以 30% 為分水嶺；高券資比不代表必漲。</li>
+          <li><b>當沖比</b>：當沖成交股數 ÷ 總成交股數，過高代表短線投機資金為主。</li>
+          <li><b>集保</b>：散戶＝持股 10 張以下；大戶＝400 張以上；千張大戶＝1000 張以上。看連續 4 週趨勢比看單週可靠。</li>
+          <li>排行只列成交值 3 億元以上的個股，避免冷門股雜訊。</li>
+        </ul>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================= 我的盯盤（加密） ================= -->
+  <section id="view-me" role="tabpanel" aria-labelledby="tab-me" hidden>
+    <div id="me-locked" class="unlock">
+      <div class="unlock-card">
+        <div class="unlock-ico" aria-hidden="true">🔒</div>
+        <h2>我的盯盤</h2>
+        <p class="muted">持股、成本、提醒價與警示紀錄都加密保存，輸入密碼後只在你的瀏覽器裡解開。</p>
+        <form id="unlock-form">
+          <input id="pw" type="password" placeholder="網頁密碼（SITE_PASSWORD）" autocomplete="current-password" required>
+          <label class="check"><input type="checkbox" id="remember"> 在這台裝置記住密碼</label>
+          <button type="submit" class="primary" id="unlock-btn">解鎖</button>
+          <p class="err" id="unlock-err" role="alert"></p>
+        </form>
+        <p class="muted small" id="me-unavailable" hidden>私人區尚未設定：請先在 GitHub 設定 <code>SITE_PASSWORD</code>（見 README）。</p>
+      </div>
+    </div>
+
+    <div id="me-body" hidden>
+      <div class="me-status" id="me-status"></div>
+      <div class="kpis" id="me-kpis"></div>
+      <div class="watch-grid" id="watch-grid"></div>
+
+      <div class="two-col">
+        <section class="card">
+          <div class="card-head">
+            <h3>警示紀錄</h3>
+            <select id="day-pick" aria-label="選擇日期"></select>
+          </div>
+          <ol class="timeline" id="alerts"></ol>
+        </section>
+        <section class="card">
+          <div class="card-head">
+            <h3>LINE 訊息</h3>
+            <span class="muted small" id="msg-count"></span>
+          </div>
+          <div id="messages"></div>
+        </section>
+      </div>
+
+      <section class="card" id="pmw-card" hidden>
+        <div class="card-head">
+          <h3>自選股盤後籌碼</h3>
+          <span class="muted small" id="pmw-date"></span>
+        </div>
+        <div class="table-wrap"><table class="grid" id="pmw-table"></table></div>
+      </section>
+
+      <details class="card" id="err-card" hidden>
+        <summary>系統紀錄（抓取失敗等）</summary>
+        <ul class="mono small" id="errors"></ul>
+      </details>
+
+      <p class="center"><button class="ghost" id="lock-btn">上鎖</button></p>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>資料來源：臺灣證券交易所、證券櫃檯買賣中心、臺灣集中保管結算所公開資料。盤中行情約每 5 分鐘更新一次（GitHub 排程尖峰時可能延遲）。</p>
+  <p>本網站只做資料整理與提醒，不構成任何投資建議。</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

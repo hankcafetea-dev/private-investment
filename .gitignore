@@ -1,0 +1,21 @@
+# 本機環境
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# 自動產生（GitHub 上存在 data 分支，不進 main）
+_data/
+_site/
+tw_postmarket/output/
+tw_postmarket/data/
+tw_postmarket/demo_output/
+tw_postmarket/demo_data/
+tw_line_alert/state/
+tw_line_alert/logs/
+
+# 私人資料：絕對不能進公開 repo
+.env
+tw_line_alert/.env
+watchlist.csv
+tw_line_alert/watchlist.csv

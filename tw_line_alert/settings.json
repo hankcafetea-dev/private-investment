@@ -1,0 +1,25 @@
+{
+  "poll_seconds": 30,
+  "change_levels_pct": [
+    3,
+    5,
+    7
+  ],
+  "volume_alert_ratio": 2.0,
+  "volume_alert_after": "09:30",
+  "news_enabled": true,
+  "news_digest_times": [
+    "09:05",
+    "12:00"
+  ],
+  "news_per_stock": 3,
+  "announce_enabled": true,
+  "announce_poll_minutes": 5,
+  "announce_urls": [
+    "https://openapi.twse.com.tw/v1/opendata/t187ap04_L"
+  ],
+  "start_time": "08:50",
+  "close_summary_time": "13:35",
+  "digest_minutes": 15,
+  "max_messages_per_day": 12
+}

@@ -1,0 +1,144 @@
+name: 自動更新
+
+# 排程時間是 UTC（台北時間 = UTC+8）
+#   盤中警示：週一至五 09:00–13:55 每 5 分鐘（GitHub 尖峰時可能延遲或跳過幾輪）
+#   盤後報告：週一至五 21:40；23:40 再補跑一次（資料晚公布時）
+on:
+  schedule:
+    - cron: "*/5 1-5 * * 1-5"
+    - cron: "40 13 * * 1-5"
+    - cron: "40 15 * * 1-5"
+  push:
+    branches: [main]
+    paths: ["site/**", "tools/**", ".github/workflows/**"]
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "要執行的工作"
+        type: choice
+        options: [intraday, postmarket, site]
+        default: site
+      date:
+        description: "盤後報告日期 YYYYMMDD（留空＝今天）"
+        required: false
+      now:
+        description: "盤中檢查的模擬時間，例 2026-11-13 10:30（留空＝現在；只供測試）"
+        required: false
+
+permissions:
+  contents: write   # 寫入 data 分支
+  pages: write
+  id-token: write
+  actions: write    # 讓排程不會因 60 天無活動被 GitHub 停用
+
+concurrency:
+  group: auto-update
+  cancel-in-progress: false
+
+env:
+  TASK: >-
+    ${{ github.event_name == 'workflow_dispatch' && inputs.task
+      || github.event_name == 'push' && 'site'
+      || (github.event.schedule == '40 13 * * 1-5' || github.event.schedule == '40 15 * * 1-5') && 'postmarket'
+      || 'intraday' }}
+  TZ: Asia/Taipei
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 安裝套件
+        run: pip install -q -r requirements.txt
+
+      - name: 取出資料分支（data）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            git clone -q --depth 1 --branch data "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" _data
+          else
+            mkdir -p _data
+          fi
+          echo "工作：${TASK}"
+
+      - name: 盤後籌碼報告
+        if: env.TASK == 'postmarket'
+        env:
+          PM_OUT_DIR: _data/postmarket
+          PM_DATA_DIR: _data/tdcc
+          INPUT_DATE: ${{ inputs.date }}
+        run: |
+          D="${INPUT_DATE:-$(date +%Y%m%d)}"
+          if [ -f "_data/postmarket/${D}.json" ] && [ -z "${INPUT_DATE}" ]; then
+            echo "${D} 的報告已經產生過，略過"
+          else
+            python tw_postmarket/postmarket.py --ci --date "$D"
+          fi
+          # 只留最近 60 份
+          ls -1 _data/postmarket/[0-9]*.json 2>/dev/null | sort | head -n -60 | xargs -r rm -f
+          ls -1 _data/postmarket/report_*.md 2>/dev/null | sort | head -n -60 | xargs -r rm -f
+          ls -1 _data/tdcc/tdcc_summary_*.csv 2>/dev/null | sort | head -n -12 | xargs -r rm -f
+
+      - name: 盤中警示（檢查一輪）
+        if: env.TASK == 'intraday'
+        env:
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          WATCHLIST_CSV: ${{ secrets.WATCHLIST_CSV }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          INPUT_NOW: ${{ inputs.now }}
+        run: |
+          if [ -n "${INPUT_NOW}" ]; then
+            python tw_line_alert/tick.py --data-dir _data --now "${INPUT_NOW}" --dry-run
+          else
+            python tw_line_alert/tick.py --data-dir _data
+          fi
+
+      - name: 組出網站
+        env:
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          WATCHLIST_CSV: ${{ secrets.WATCHLIST_CSV }}
+        run: python tools/build_site.py --data-dir _data --out _site
+
+      - name: 存回資料分支
+        if: env.TASK != 'site'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd _data
+          rm -rf .git
+          git init -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "資料更新 $(date '+%F %R')（${TASK}）"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - name: 發布到 GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v5
+
+      - name: 保持排程啟用
+        if: env.TASK == 'postmarket'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/auto.yml/enable"
